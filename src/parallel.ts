@@ -2,6 +2,7 @@ import { Worker } from "worker_threads";
 import path from "path";
 import os from "os";
 import crypto from "crypto";
+import { Feature, Point, BBox } from "geojson";
 
 export class ParallelArray {
     constructor(
@@ -79,8 +80,6 @@ export class ParallelArray {
     }
 }
 
-export type Point = number[];
-
 function sha256(x: number, y: number) {
     const buf = Buffer.alloc(16);
     buf.writeBigUInt64BE(BigInt(x), 0);
@@ -96,14 +95,12 @@ function cell(size: number, x: number, y: number) {
     return [Math.floor((x - xmin) / size), Math.floor((y - ymin) / size)];
 }
 
-export type BBox = { xmin: number; ymin: number; xmax: number; ymax: number };
-
 type SpatialIndex = Record<string, number[]>;
 
 export class SpatialArray extends ParallelArray {
     private index: SpatialIndex = {};
     constructor(
-        array: Point[],
+        array: Feature<Point>[],
         private readonly cellSize = 10,
         poolSize: number = os.cpus().length
     ) {
@@ -111,7 +108,8 @@ export class SpatialArray extends ParallelArray {
     }
     async createIndex(): Promise<void> {
         const fn = `function (a, p, i) {
-            const [lon, lat] = p;
+            const { geometry: { coordinates } } = p;
+            const [lon, lat] = coordinates;
             const cell = ${cell.toString()};
             const [x, y] = cell(${this.cellSize}, lon, lat);
             const h = sha256(x, y);
@@ -131,17 +129,32 @@ export class SpatialArray extends ParallelArray {
         );
     }
 
-    query(bbox: BBox): Point[] {
-        const { xmin, xmax, ymin, ymax } = bbox;
-        const [llx, lly] = cell(this.cellSize, xmin, ymin);
-        const [urx, ury] = cell(this.cellSize, xmax, ymax);
-        const result = <Point[][]>[];
-        for (let x = llx; x < urx; x += this.cellSize) {
-            for (let y = lly; y < ury; y += this.cellSize) {
+    query(bbox: BBox): Feature<Point>[] {
+        const [minLon, minLat, maxLon, maxLat] = bbox;
+        const [llx, lly] = cell(this.cellSize, minLon, minLat);
+        const [urx, ury] = cell(this.cellSize, maxLon, maxLat);
+        const result = <Feature<Point>[][]>[];
+        for (let x = llx; x <= urx; x += this.cellSize) {
+            for (let y = lly; y <= ury; y += this.cellSize) {
                 const h = sha256(x, y);
                 const pp = this.index[h];
                 if (Array.isArray(pp)) {
-                    result.push(pp.map((i) => <Point>this.array[i]));
+                    result.push(
+                        pp
+                            .map((i) => <Feature<Point>>this.array[i])
+                            .filter((p) => {
+                                const {
+                                    geometry: { coordinates },
+                                } = p;
+                                const [lon, lat] = coordinates;
+                                return (
+                                    minLon <= lon &&
+                                    lon <= maxLon &&
+                                    minLat <= lat &&
+                                    lat <= maxLat
+                                );
+                            })
+                    );
                 }
             }
         }

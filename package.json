@@ -1,16 +1,20 @@
 {
-  "name": "parallel_tasks",
-  "packageManager": "yarn@4.17.0",
-  "devDependencies": {
-    "@types/node": "^26.0.0",
-    "nodemon": "^3.1.14",
-    "prettier": "^3.8.4",
-    "ts-node": "^10.9.2",
-    "typescript": "^6.0.3"
-  },
-  "scripts": {
-    "build": "tsc",
-    "dev": "nodemon --exec ts-node src/index.ts",
-    "start": "node dist/index.js"
-  }
+    "name": "parallel_tasks",
+    "packageManager": "yarn@4.17.0",
+    "devDependencies": {
+        "@types/geojson": "^7946.0.16",
+        "@types/node": "^26.0.0",
+        "nodemon": "^3.1.14",
+        "prettier": "^3.8.4",
+        "ts-node": "^10.9.2",
+        "typescript": "^6.0.3"
+    },
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "serve": "node dist/server.js"
+    },
+    "dependencies": {
+        "fastify": "^5.8.5"
+    }
 }

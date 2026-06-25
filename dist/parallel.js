@@ -93,7 +93,8 @@ class SpatialArray extends ParallelArray {
     }
     async createIndex() {
         const fn = `function (a, p, i) {
-            const [lon, lat] = p;
+            const { geometry: { coordinates } } = p;
+            const [lon, lat] = coordinates;
             const cell = ${cell.toString()};
             const [x, y] = cell(${this.cellSize}, lon, lat);
             const h = sha256(x, y);
@@ -104,23 +105,31 @@ class SpatialArray extends ParallelArray {
             return a;
         }`;
         const [result] = await this.run("indexer.js", fn, { initial: {} });
-        console.log("index", result);
         this.index = Object.keys(result).reduce((a, k) => {
             a[k] = result[k];
             return a;
         }, {});
     }
     query(bbox) {
-        const { xmin, xmax, ymin, ymax } = bbox;
-        const [llx, lly] = cell(this.cellSize, xmin, ymin);
-        const [urx, ury] = cell(this.cellSize, xmax, ymax);
+        const [minLon, minLat, maxLon, maxLat] = bbox;
+        const [llx, lly] = cell(this.cellSize, minLon, minLat);
+        const [urx, ury] = cell(this.cellSize, maxLon, maxLat);
         const result = [];
-        for (let x = llx; x < urx; x += this.cellSize) {
-            for (let y = lly; y < ury; y += this.cellSize) {
+        for (let x = llx; x <= urx; x += this.cellSize) {
+            for (let y = lly; y <= ury; y += this.cellSize) {
                 const h = sha256(x, y);
                 const pp = this.index[h];
                 if (Array.isArray(pp)) {
-                    result.push(pp.map((i) => this.array[i]));
+                    result.push(pp
+                        .map((i) => this.array[i])
+                        .filter((p) => {
+                        const { geometry: { coordinates }, } = p;
+                        const [lon, lat] = coordinates;
+                        return (minLon <= lon &&
+                            lon <= maxLon &&
+                            minLat <= lat &&
+                            lat <= maxLat);
+                    }));
                 }
             }
         }
