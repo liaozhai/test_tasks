@@ -1,36 +1,4 @@
-import { encodeFeatureCollection, Feature, FeatureCollection } from "./feature";
 import fs from "fs";
-import { pipeline } from "stream/promises";
-
-function createFeatures(n: number) {
-    const g = <Feature[]>[];
-    for (let i = 0; i < n; i++) {
-        const x = Math.floor(Math.random() * 180);
-        const y = Math.floor(Math.random() * 90);
-        g.push(<Feature>{
-            type: "Feature",
-            geometry: {
-                type: "Point",
-                coordinates: [x, y],
-            },
-        });
-    }
-    return g;
-}
-
-async function* generateFeatures(n: number) {
-    for (let i = 0; i < n; i++) {
-        const x = Math.floor(Math.random() * 180);
-        const y = Math.floor(Math.random() * 90);
-        yield <Feature>{
-            type: "Feature",
-            geometry: {
-                type: "Point",
-                coordinates: [x, y],
-            },
-        };
-    }
-}
 
 const NUMBER_OF_FEATURES = 1e7;
 
