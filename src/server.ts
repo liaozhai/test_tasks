@@ -1,58 +1,32 @@
 import Fastify from "fastify";
 import { SpatialArray } from "./parallel";
-import { Feature, Point, FeatureCollection } from "geojson";
-
-const featuresSchema = {
-    type: "object",
-    required: ["type", "geometry"],
-    properties: {
-        type: { type: "string", const: "Feature" },
-        geometry: {
-            type: "object",
-            required: ["type", "coordinates"],
-            properties: {
-                type: {
-                    type: "string",
-                    enum: ["Point"],
-                },
-                coordinates: {
-                    type: ["array"],
-                },
-            },
-            additionalProperties: false,
-        },
-        properties: {
-            type: ["object", "null"],
-        },
-        id: { type: ["string", "number", "null"] },
-    },
-    additionalProperties: false,
-};
+import { Feature, FeatureCollection, Point } from "geojson";
+import { decodeFeatureCollection } from "./feature";
+import fp from "fastify-plugin";
+import mp from "@fastify/multipart";
 
 const fastify = Fastify({ logger: true });
 
-let store: SpatialArray;
+fastify.register(fp(mp));
 
-fastify.post(
-    "/load",
-    {
-        schema: {
-            body: {
-                type: "array",
-                items: featuresSchema,
-                minItems: 1,
-            },
-        },
-    },
-    async (request, reply) => {
-        const features = request.body as Feature<Point>[];
-        if (!store) {
-            store = new SpatialArray(features);
-        }
-        await store.createIndex();
-        return { status: "indexed", count: features.length };
+let store: SpatialArray | null = null;
+
+fastify.post("/load", async (request, reply) => {
+    const data = await request.file();
+    if (!data) {
+        return { error: "Error" };
     }
-);
+    const chunks = [];
+    for await (const chunk of data.file) {
+        chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+    const fc = decodeFeatureCollection(buffer);
+    store = new SpatialArray(<Feature<Point>[]>fc.features);
+    await store.createIndex();
+
+    return { status: "indexed", count: store.count };
+});
 
 type BoundingBox = {
     minLon: number;
@@ -87,7 +61,7 @@ fastify.get(
     async (request, reply) => {
         if (store) {
             const { minLon, minLat, maxLon, maxLat } =
-                request.params as BoundingBox;
+                request.query as BoundingBox;
             const features = store.query([minLon, minLat, maxLon, maxLat]);
             return {
                 type: "FeatureCollection",

@@ -101,10 +101,13 @@ export class SpatialArray extends ParallelArray {
     private index: SpatialIndex = {};
     constructor(
         array: Feature<Point>[],
-        private readonly cellSize = 10,
+        private readonly cellSize = 1,
         poolSize: number = os.cpus().length
     ) {
         super(array, poolSize);
+    }
+    get count() {
+        return this.array.length;
     }
     async createIndex(): Promise<void> {
         const fn = `function (a, p, i) {
