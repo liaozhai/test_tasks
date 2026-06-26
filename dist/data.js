@@ -1,13 +1,15 @@
-import { encodeFeatureCollection, Feature, FeatureCollection } from "./feature";
-import fs from "fs";
-import { pipeline } from "stream/promises";
-
-function createFeatures(n: number) {
-    const g = <Feature[]>[];
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const fs_1 = __importDefault(require("fs"));
+function createFeatures(n) {
+    const g = [];
     for (let i = 0; i < n; i++) {
         const x = Math.floor(Math.random() * 180);
         const y = Math.floor(Math.random() * 90);
-        g.push(<Feature>{
+        g.push({
             type: "Feature",
             geometry: {
                 type: "Point",
@@ -17,12 +19,11 @@ function createFeatures(n: number) {
     }
     return g;
 }
-
-async function* generateFeatures(n: number) {
+async function* generateFeatures(n) {
     for (let i = 0; i < n; i++) {
         const x = Math.floor(Math.random() * 180);
         const y = Math.floor(Math.random() * 90);
-        yield <Feature>{
+        yield {
             type: "Feature",
             geometry: {
                 type: "Point",
@@ -31,11 +32,9 @@ async function* generateFeatures(n: number) {
         };
     }
 }
-
 const NUMBER_OF_FEATURES = 1e7;
-
 async function main() {
-    const w = fs.createWriteStream("data.txt");
+    const w = fs_1.default.createWriteStream("data.txt");
     for (let i = 0; i < NUMBER_OF_FEATURES; i++) {
         const x = Math.floor(Math.random() * 180);
         const y = Math.floor(Math.random() * 90);
@@ -44,5 +43,5 @@ async function main() {
     }
     w.end();
 }
-
 main();
+//# sourceMappingURL=data.js.map

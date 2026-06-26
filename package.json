@@ -15,6 +15,7 @@
     "scripts": {
         "build": "tsc",
         "dev:serve": "nodemon --inspect src/server.ts",
+        "dev:data": "nodemon --inspect src/data.ts",
         "data": "tsx src/data.ts",
         "serve": "tsx src/server.ts",
         "proto": "npx pbjs --ts src/feature.ts proto/feature.proto"

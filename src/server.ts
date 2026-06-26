@@ -1,28 +1,56 @@
 import Fastify from "fastify";
 import { SpatialArray } from "./parallel";
-import { Feature, FeatureCollection, Point } from "geojson";
-import { decodeFeatureCollection } from "./feature";
-import fp from "fastify-plugin";
-import mp from "@fastify/multipart";
+import { FeatureCollection, Feature, Point } from "geojson";
+import fastifyMultiPart from "@fastify/multipart";
 
 const fastify = Fastify({ logger: true });
-
-fastify.register(fp(mp));
+fastify.register(fastifyMultiPart, {
+    throwFileSizeLimit: false,
+    limits: { fileSize: 1024e3 },
+});
 
 let store: SpatialArray | null = null;
 
+function* getLines(buffer: Buffer, encoding: BufferEncoding = "utf8") {
+    let start = 0;
+    for (let i = 0; i < buffer.length; i++) {
+        if (buffer[i] === 0x0a) {
+            // \n
+            yield buffer.toString(encoding, start, i);
+            start = i + 1;
+        } else if (buffer[i] === 0x0d && buffer[i + 1] === 0x0a) {
+            // \r\n
+            yield buffer.toString(encoding, start, i);
+            start = i + 2;
+            i++;
+        }
+    }
+    if (start < buffer.length) {
+        yield buffer.toString(encoding, start);
+    }
+}
+
 fastify.post("/load", async (request, reply) => {
-    const data = await request.file();
-    if (!data) {
-        return { error: "Error" };
+    const data = await request.file({
+        throwFileSizeLimit: false,
+        limits: { fileSize: 100 * 1024 * 1024 },
+    });
+    const buf = await data!.toBuffer();
+
+    const features = <Feature<Point>[]>[];
+
+    for (const line of getLines(buf)) {
+        const [x, y] = line.split(";");
+        features.push(<Feature<Point>>{
+            type: "Feature",
+            geometry: {
+                type: "Point",
+                coordinates: [+x, +y],
+            },
+        });
     }
-    const chunks = [];
-    for await (const chunk of data.file) {
-        chunks.push(chunk);
-    }
-    const buffer = Buffer.concat(chunks);
-    const fc = decodeFeatureCollection(buffer);
-    store = new SpatialArray(<Feature<Point>[]>fc.features);
+
+    store = new SpatialArray(features);
     await store.createIndex();
 
     return { status: "indexed", count: store.count };

@@ -8,6 +8,14 @@
             "runtimeExecutable": "yarn",
             "runtimeArgs": ["dev:serve"],
             "outputCapture": "std"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug data",
+            "runtimeExecutable": "yarn",
+            "runtimeArgs": ["dev:data"],
+            "outputCapture": "std"
         }
     ]
 }
